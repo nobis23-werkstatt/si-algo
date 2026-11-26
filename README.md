@@ -1,6 +1,10 @@
-# 5D Triad Forge — Genie 4 Live World (`AGY × Grok × Claude`)
+# 5D Triad Forge v4.0 Ultra — Genie 4 × Local Triad World (`si-algo`)
 
-Interactive real-time `16:9` `24 fps` world studio powered by **Google Genie 4 (`models/genie-4`)** over the `v1beta` Live Interactions API (WebRTC + WebSocket) and co-directed by your **locally installed `agy`, `grok`, and `claude` CLIs**.
+Interactive `16:9` real-time world studio combining a **zero-cost playable 60 fps 3D Twin (16 Archetypes)** with **Google Genie 4 (`models/genie-4`, 24 fps WebRTC `v1beta`)**, **180-BPM B-Minor Tekno FFT Sync**, **Binary Min-Heap A* Escape Oracle**, **4-Track Acid-303 SMF MIDI Forge**, and **Prepaid World-Coins** — co-directed by local **`agy`**, **`grok`**, and **`claude`** CLIs through the **Sovereign Integral (`si-algo`)** gate.
+
+- **Live Browser Studio (`0,00 €` API Cost Lock):** <https://nobis23-werkstatt.github.io/si-algo/>
+- **Sibling Multi-CLI Orchestra (`multie`):** [`nobis23-werkstatt/multie`](https://github.com/nobis23-werkstatt/multie) (<https://nobis23-werkstatt.github.io/multie/>)
+- **NOBIS23 Werkstatt:** <https://nobis23-werkstatt.netlify.app/#forge>
 
 ## Architecture (`efficient++`)
 
