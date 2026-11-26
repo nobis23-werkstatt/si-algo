@@ -1,0 +1,19 @@
+{
+  "name": "genie4-triad-world",
+  "version": "3.0.0",
+  "description": "5D Triad Forge v3.0: Zero-Cost 3D + Keyless Genie 4 Live World co-directed by AGY, Grok, and Claude with A* Escape Oracle, Binary 303 MIDI Forge, and Sovereign Integral Brier gating.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs",
+    "triad": "node src/cli-triad.mjs",
+    "si-algo": "node src/si-algo-core.mjs",
+    "test": "node --test test/triad-world.test.mjs skills/sovereign-world-forge/scripts/test.mjs"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@google/genai": "^3.6.1"
+  }
+}

@@ -1,0 +1,77 @@
+name: Test & Deploy 5D Triad Forge to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies & run full Sovereign test suite
+        run: |
+          npm ci
+          npm test
+          npm run si-algo -- simulate --mode sovereign --cycles 30
+
+      - name: Assemble standalone static bundle (_site)
+        run: |
+          mkdir -p _site/vendor/genai
+          cp -r public/* _site/
+          cp -r node_modules/@google/genai/dist/web/* _site/vendor/genai/
+          cat << 'EOF' > _site/vendor/p-retry.mjs
+          export class AbortError extends Error {
+            constructor(message) {
+              super(typeof message === "string" ? message : message?.message || "Aborted");
+              this.name = "AbortError";
+            }
+          }
+          export default async function pRetry(input, options = {}) {
+            const retries = options.retries ?? 3;
+            let attempt = 0;
+            while (true) {
+              attempt++;
+              try { return await input(attempt); }
+              catch (err) {
+                if (err?.name === "AbortError" || attempt > retries) throw err;
+                await new Promise((r) => setTimeout(r, 500 * attempt));
+              }
+            }
+          }
+          export { pRetry };
+          EOF
+          touch _site/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "_site"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

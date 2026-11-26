@@ -1,0 +1,8 @@
+{
+  "entries": [
+    {
+      "path": ".agents/skills",
+      "include_only": ["triad-world-conductor"]
+    }
+  ]
+}
