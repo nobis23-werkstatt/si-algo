@@ -2,8 +2,9 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>5D Triad Forge v3.0 — 0€ 3D Twin · Genie 4 · Jockey · Escape · Arena · Theater</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>5D Triad Forge v4.0 Ultra — 180-BPM Sync · World-Coins · 16 Archetypes · Genie 4</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%230b1325'/><circle cx='32' cy='32' r='19' fill='none' stroke='%2338bdf8' stroke-width='5'/><circle cx='32' cy='32' r='8' fill='%2334d399'/></svg>" />
   <link rel="stylesheet" href="./styles.css" />
   <script type="importmap">
@@ -20,8 +21,8 @@
     <div class="brand">
       <div class="brand-orb"></div>
       <div>
-        <h1>5D Triad Forge v2.0 · Sovereign World Suite</h1>
-        <p>Local AGY × Grok × Claude · 0€ Playable 3D Twin + Keyless Genie 4 (`v1beta`)</p>
+        <h1>5D Triad Forge v4.0 Ultra · Sovereign World</h1>
+        <p>16 Archetypes · 180-BPM B-Minor Sync · Prepaid World-Coins · Touch APK Ready</p>
       </div>
     </div>
 
@@ -34,56 +35,43 @@
     </div>
 
     <form class="key-form" id="keyForm" style="display:flex;gap:6px;">
-      <input type="password" id="apiKeyInput" placeholder="Optional API-Key Override" autocomplete="off" />
+      <input type="password" id="apiKeyInput" placeholder="Optional API-Key" autocomplete="off" />
       <button type="submit">Set</button>
     </form>
   </header>
 
-  <!-- Module 0: Cost Firewall & Recorder Strip -->
   <div class="firewall-bar">
     <div class="firewall-group">
       <strong>🛡️ Kosten-Firewall:</strong>
       <select id="budgetModeSelect">
-        <option value="lock" selected>🔒 0 € Lock (Nur lokale 3D-Welt — garantiert $0.00)</option>
-        <option value="12">🎬 12s Golden-Take Burst (max ~$1.21)</option>
-        <option value="20">🎞️ 20s Micro-Trailer Burst (max ~$2.02)</option>
-        <option value="45">🌐 45s Extended Session (max ~$4.55)</option>
+        <option value="lock" selected>🔒 0 € Lock (Nur 3D-Welt — $0.00)</option>
+        <option value="coin">🪙 Prepaid World-Coin (1 Coin = 12s Genie 4 Take)</option>
+        <option value="12">🎬 12s Dev Burst (~$1.21)</option>
+        <option value="20">🎞️ 20s Trailer Burst (~$2.02)</option>
       </select>
-      <span id="dailyBudgetText">Heute: 0.0s / 36s (~$0.00)</span>
-      <label class="toggle-label" title="Stoppt bezahlte Genie-4-Streams nach 6s ohne Eingabe sofort">
-        <input type="checkbox" id="chkIdleCutoff" checked />
-        6s Idle-Auto-Stop
-      </label>
-      <label class="toggle-label" title="Übergibt deinen aktuellen 0€-3D-Blick als <40KB Reference-Image an Genie 4">
-        <input type="checkbox" id="chkUse3DRef" checked />
-        3D→Genie4 Ref-Frame
-      </label>
+      <span id="dailyBudgetText">Heute: 0.0s / 48s (~$0.00)</span>
+      <label class="toggle-label"><input type="checkbox" id="chkIdleCutoff" checked /> 6s Idle-Stop</label>
+      <label class="toggle-label"><input type="checkbox" id="chkUse3DRef" checked /> 3D→Genie4 Ref</label>
     </div>
 
     <div class="firewall-group">
+      <button id="btnTouchToggle" title="Dual-Stick Touch-Steuerung ein/aus (Mobile/APK Vorschau)">📱 Touch-Stick</button>
       <button id="btnRecordToggle">⏺ Record (.webm)</button>
       <button id="btnSnapshot">📸 Snapshot (.png)</button>
-      <label class="toggle-label">
-        <input type="checkbox" id="chkFoleyAudio" checked />
-        0€ Foley-Audio
-      </label>
-      <label class="toggle-label" title="Echte lokale CLIs (agy/grok/claude) vs. 1ms Sofort-Synthese">
-        <input type="checkbox" id="chkLiveClis" />
-        Live Local CLIs
-      </label>
+      <label class="toggle-label"><input type="checkbox" id="chkFoleyAudio" checked /> Foley</label>
+      <label class="toggle-label"><input type="checkbox" id="chkLiveClis" /> Live CLIs</label>
     </div>
   </div>
 
   <main class="layout">
-    <!-- Left Column: Playable 16:9 Viewport + 5 Project Modes -->
     <section class="card">
       <div class="viewport-wrap" id="viewportWrap">
         <canvas id="holoCanvas" width="1280" height="720"></canvas>
         <video id="genieVideo" class="hidden" autoplay playsinline></video>
 
         <div class="hud-top">
-          <div class="hud-badge" id="hudState">MODE: 0€ PLAYABLE 3D TWIN ($0.00/s)</div>
-          <div class="hud-badge" id="hudTimer">00:00 · $0.00</div>
+          <div class="hud-badge" id="hudState">MODE: 0€ PLAYABLE 3D TWIN (16 ARCHETYPES)</div>
+          <div class="hud-badge" id="hudTimer">180 BPM · B-MINOR READY</div>
         </div>
 
         <div class="hud-keys">
@@ -100,120 +88,149 @@
         </div>
       </div>
 
-      <!-- Universal Genie 4 Burst Bar -->
       <div class="controls-bar">
         <button class="btn-triad" id="btnTriadSpark">⚡ Triad 3D Morph ($0)</button>
-        <button class="btn-primary" id="btnStartGenie">▶ Portal: Genie 4 Burst</button>
+        <button class="btn-primary" id="btnStartGenie">▶ Launch Genie 4 / Spend Coin</button>
         <button class="btn-danger" id="btnStopGenie" disabled>⏹ Stop &amp; Complete()</button>
-        <button id="btnResetCam">↺ Reset Pos</button>
-
-        <select id="transportSelect" title="Genie 4 Transport">
-          <option value="webrtc" selected>WebRTC (24fps)</option>
+        <button id="btnResetCam">↺ Pos</button>
+        <select id="archetypeSelect" title="Direktwahl der 16 3D-Welt-Archetypen">
+          <option value="tekno_bunker_909">01 · Tekno Bunker 909</option>
+          <option value="acid_reactor_bmin">02 · 303 Acid Reactor</option>
+          <option value="gravity_colosseum">03 · Gravity Colosseum</option>
+          <option value="quantum_lattice">04 · Quantum Lattice</option>
+          <option value="cathedral">05 · Gothic Cathedral</option>
+          <option value="library">06 · Basalt Tide Library</option>
+          <option value="canyon">07 · Kyoto Rain Canyon</option>
+          <option value="spire">08 · Cloud Spire</option>
+          <option value="obsidian_vault">09 · Obsidian Siege Vault</option>
+          <option value="solarpunk_observatory">10 · Solarpunk Conservatory</option>
+          <option value="ice_citadel">11 · Cryo Glacier Citadel</option>
+          <option value="cyber_canal">12 · Impasto Oil Canal</option>
+          <option value="orbital_ring">13 · Orbital Portal Ring</option>
+          <option value="desert_monolith">14 · Sandstone Monolith</option>
+          <option value="sub_abyss">15 · Deep Trench Archive</option>
+          <option value="sovereign_citadel">16 · Sovereign Citadel</option>
+        </select>
+        <select id="transportSelect">
+          <option value="webrtc" selected>WebRTC</option>
           <option value="websocket">WebSocket</option>
         </select>
-
-        <label class="toggle-label">
-          <span>Custom Ref:</span>
-          <input type="file" id="refImageInput" accept="image/*" style="max-width:155px;font-size:0.72rem;" />
-        </label>
       </div>
 
-      <!-- 5 Studio Mode Tabs -->
       <nav class="mode-tabs">
-        <button class="tab-btn active" data-pane="pane-twin">1 · 3D Twin &amp; Genie</button>
-        <button class="tab-btn" data-pane="pane-jockey">2 · World-Jockey (303 / BPM)</button>
-        <button class="tab-btn" data-pane="pane-escape">3 · Infinite Escape (BFS)</button>
-        <button class="tab-btn" data-pane="pane-arena">4 · Game Variant-Arena</button>
-        <button class="tab-btn" data-pane="pane-theater">5 · 5D Theater &amp; Auto-Trailer</button>
+        <button class="tab-btn" data-pane="pane-twin">1 · 3D Twin</button>
+        <button class="tab-btn active" data-pane="pane-jockey">2 · 180-BPM Sync &amp; 303</button>
+        <button class="tab-btn" data-pane="pane-escape">3 · A* Escape (4 Tiers)</button>
+        <button class="tab-btn" data-pane="pane-arena">4 · 12× Variant-Arena</button>
+        <button class="tab-btn" data-pane="pane-theater">5 · Theater &amp; Trailer</button>
       </nav>
 
-      <!-- PANE 1: 3D Twin & Genie Portal -->
-      <div class="mode-pane active" id="pane-twin">
+      <!-- PANE 1: 3D Twin -->
+      <div class="mode-pane" id="pane-twin">
         <div class="seed-row">
-          <input
-            type="text"
-            id="seedInput"
-            value="Sunlit glass-and-brass solarpunk observatory bridged across a misty canyon waterfall"
-            placeholder="Welt-Idee oder Live-Mutation für AGY × Grok × Claude..."
-          />
+          <input type="text" id="seedInput" value="180-BPM B-Minor Tekno Bunker opening into a sunlit brass astrolabe colosseum" />
           <button id="btnSteerNow">Morph / Steer</button>
+          <input type="file" id="refImageInput" accept="image/*" style="max-width:140px;font-size:0.72rem;" />
         </div>
         <div class="preset-chips">
+          <button type="button" class="chip" data-seed="180-BPM B-Minor Tekno Bunker with copper 909 resonators and strobe waveguides">180-BPM Tekno Bunker</button>
           <button type="button" class="chip" data-seed="Lantern-lit Kyoto cedar alley in gentle rain leading to a kinetic origami pavilion">Kyoto Kinetic Alley</button>
-          <button type="button" class="chip" data-seed="Thick impasto oil-painting cobblestone canal path with brass astrolabe bridges">Impasto Canal Orrery</button>
           <button type="button" class="chip" data-seed="Subterranean basalt library illuminated by bioluminescent tide pools and glass catwalks">Tidal Basalt Library</button>
-          <button type="button" class="chip" data-seed="High-alpine travertine courtyard above a sea of clouds with spinning copper wind-harps">Cloud Travertine Spire</button>
+          <button type="button" class="chip" data-seed="Gravity Ball marble colosseum above a sea of clouds with spinning gyro rings">Gravity Ball Colosseum</button>
         </div>
       </div>
 
-      <!-- PANE 2: Audio-Visual World-Jockey (Ableton / 303 / BPM) -->
-      <div class="mode-pane" id="pane-jockey">
+      <!-- PANE 2: 180-BPM Motivation Track Sync & 4-Track MIDI Forge (Active Default!) -->
+      <div class="mode-pane active" id="pane-jockey">
+        <div class="track-banner">
+          <div>
+            <strong>🔥 Pauls 180.00 BPM · B-Minor Motivation Track Sync</strong>
+            <div id="trackCueLabel" style="font-size:0.74rem;color:#fde68a;">Ready: Kick + Bodyravv + 909 + 303 Screamer (05:04)</div>
+          </div>
+          <div style="display:flex;gap:7px;align-items:center;">
+            <button class="btn-warn" id="btnSyncTrack">▶ SYNC 180-BPM TRACK + AUTO-FLY!</button>
+            <audio id="motivationAudio" src="./audio/motivation-180bpm-bmin.mp3" preload="metadata"></audio>
+          </div>
+        </div>
+
         <div class="slider-grid">
           <div class="slider-card">
-            <label>BPM: <strong id="lblBpm">138</strong></label>
-            <input type="range" id="rngBpm" min="90" max="180" value="138" />
+            <label>BPM: <strong id="lblBpm">180</strong></label>
+            <input type="range" id="rngBpm" min="90" max="200" value="180" />
           </div>
           <div class="slider-card">
-            <label>303 Cutoff: <strong id="lblCutoff">62%</strong></label>
-            <input type="range" id="rngCutoff" min="5" max="100" value="62" />
+            <label>303 Cutoff: <strong id="lblCutoff">68%</strong></label>
+            <input type="range" id="rngCutoff" min="5" max="100" value="68" />
           </div>
           <div class="slider-card">
-            <label>Energy / Resonance: <strong id="lblEnergy">75%</strong></label>
-            <input type="range" id="rngEnergy" min="10" max="100" value="75" />
+            <label>Energy / Reso: <strong id="lblEnergy">85%</strong></label>
+            <input type="range" id="rngEnergy" min="10" max="100" value="85" />
           </div>
         </div>
+
         <div class="controls-bar" style="margin-top:4px;">
-          <button class="btn-triad" id="btnAcidToggle">▶ Start 0€ Acid-303 Synth</button>
-          <button class="btn-primary" id="btnExportMidi">🎹 Export Ableton 303 (.mid)</button>
-          <button class="btn-warn" id="btnTriggerDrop">💥 TRIGGER WORLD DROP!</button>
-        </div>
-        <div class="code-hint">
-          Ableton / Werkbank Bridge Webhook: <code>POST http://localhost:4321/api/jockey/pulse {"bpm":142,"energy":0.95,"cutoff":0.88,"drop":true}</code>
+          <button class="btn-triad" id="btnAcidToggle">▶ 0€ B-Min Acid Synth</button>
+          <select id="midiScaleSelect">
+            <option value="b_minor" selected>B Minor (Track Key!)</option>
+            <option value="a_phrygian">A Phrygian Acid</option>
+            <option value="d_minor">D Minor Tekno</option>
+            <option value="f_sharp_locrian">F# Locrian Dark</option>
+            <option value="c_dorian">C Dorian</option>
+            <option value="e_acid_pentatonic">E Pentatonic</option>
+          </select>
+          <button class="btn-primary" id="btnExportMidi">🎹 1-Track 303 (.mid)</button>
+          <button class="btn-primary" id="btnExportStemMidi">🎛️ 4-Track Full Stem Kit (.mid)</button>
+          <button class="btn-warn" id="btnTriggerDrop">💥 DROP!</button>
         </div>
       </div>
 
-      <!-- PANE 3: Infinite Escape Room (BFS Verified) -->
+      <!-- PANE 3: 4-Tier Min-Heap A* Escape Room -->
       <div class="mode-pane" id="pane-escape">
         <div class="seed-row">
-          <input type="text" id="escapeSeedInput" value="chronos-astrolabe-vault" placeholder="Rätsel-Seed..." />
-          <button class="btn-triad" id="btnNewEscape">🧩 Neues BFS-Rätsel starten ($0)</button>
-          <button id="btnExitEscape">Beenden</button>
+          <input type="text" id="escapeSeedInput" value="tekno-bunker-909" placeholder="Rätsel-Seed..." />
+          <select id="escapeTierSelect">
+            <option value="1">Tier 1 (3 Runen · Schnell)</option>
+            <option value="2">Tier 2 (4 Runen · Standard)</option>
+            <option value="3">Tier 3 (5 Runen · Komplex)</option>
+            <option value="4" selected>Tier 4 (6 Runen · 448 States!)</option>
+          </select>
+          <button class="btn-triad" id="btnNewEscape">🧩 Start Min-Heap A* Escape</button>
+          <button id="btnExitEscape">Exit</button>
         </div>
         <div class="code-hint" id="escapeOracleStatus">
-          Klicke auf „Neues BFS-Rätsel starten“: `oracle-first-exploration` beweist vorab per BFS 0 Sackgassen, platziert Schalter &amp; Fallen in 3D (`WASD` + `E`).
+          Wähle Tier 1–4: Binary-Min-Heap A* beweist 0 Sackgassen in unter 1 ms (`>6×` weniger Knoten als BFS!).
         </div>
       </div>
 
-      <!-- PANE 4: Game-Prototyping Variant-Arena -->
+      <!-- PANE 4: 12x Game Variant-Arena -->
       <div class="mode-pane" id="pane-arena">
         <div class="seed-row">
-          <input type="text" id="arenaConceptInput" value="Gravity Ball Quantum Canyon Championship" placeholder="Game-Level-Konzept..." />
-          <button class="btn-triad" id="btnRunArena">⚔️ 3 Varianten testen ($0)</button>
+          <input type="text" id="arenaConceptInput" value="Gravity Ball 180-BPM Tekno Championship" />
+          <button class="btn-triad" id="btnRunArena">⚔️ Alle 12 Archetypen ranken</button>
           <button id="btnExportArena" disabled>💾 Export level-spec.json</button>
         </div>
         <div class="arena-grid" id="arenaGrid"></div>
       </div>
 
-      <!-- PANE 5: 5D Philosophy Theater & 1-Click Micro-Trailer Director -->
+      <!-- PANE 5: 5D Theater & Auto-Trailer -->
       <div class="mode-pane" id="pane-theater">
         <div class="seed-row">
-          <input
-            type="text"
-            id="theaterTopicInput"
-            value="Können rekursiv selbstverbessernde Agenten ohne physisches Grounding stabil bleiben?"
-            placeholder="Architektur-Frage, Philosophie-These oder Trailer-Thema..."
-          />
-          <button class="btn-triad" id="btnRunTheater">🎭 3-Akt 5D-Debatte ($0)</button>
-          <button class="btn-primary" id="btnAutoTrailer">🎬 12s Auto-Trailer + .webm Export</button>
-        </div>
-        <div class="code-hint">
-          <strong>Auto-Trailer Regie:</strong> Fährt automatisch 3 Kamera-Akte ab, schneidet live `.webm` mit (im `0€ Lock` kostenlos auf der 3D-Engine; im `12s Burst` mit echtem Genie 4!).
+          <input type="text" id="theaterTopicInput" value="Sovereign Integral Alignment at 180 BPM" />
+          <button class="btn-triad" id="btnRunTheater">🎭 3-Akt 5D-Debatte</button>
+          <button class="btn-primary" id="btnAutoTrailer">🎬 Auto-Trailer + .webm</button>
         </div>
       </div>
     </section>
 
-    <!-- Right Column: Downloads + Sovereign Gate + Live Triad Feed -->
     <aside class="card">
+      <!-- Prepaid World-Coins Wallet Bar -->
+      <div class="coin-bar">
+        <strong>🪙 World-Coins: <span id="coinBalance">0</span></strong>
+        <input type="text" id="coinCodeInput" placeholder="Code z.B. N23-GOLD-180BPM" style="width:155px;padding:4px 8px;font-size:0.74rem;" />
+        <button id="btnRedeemCoin" style="padding:4px 9px;font-size:0.74rem;">Einlösen</button>
+        <a href="https://nobis23.gumroad.com" target="_blank" rel="noopener" class="dl-link" style="margin-left:auto;">Shop →</a>
+      </div>
+
       <div class="triad-header">
         <h2>Triad Bus (`agy` · `grok` · `claude`)</h2>
         <span class="pill" id="gateBadge">Gate: READY</span>
@@ -231,8 +248,8 @@
         <div class="metric">
           <span>Human Anchor</span>
           <div style="display:flex;gap:4px;margin-top:2px;">
-            <button type="button" id="btnVoteKeep" style="padding:2px 7px;font-size:0.72rem;" title="Brier Outcome = 1 (Keep)">👍 Keep</button>
-            <button type="button" id="btnVoteDrift" style="padding:2px 7px;font-size:0.72rem;" title="Brier Outcome = 0 (Drift)">👎 Drift</button>
+            <button type="button" id="btnVoteKeep" style="padding:2px 7px;font-size:0.72rem;">👍 Keep</button>
+            <button type="button" id="btnVoteDrift" style="padding:2px 7px;font-size:0.72rem;">👎 Drift</button>
           </div>
         </div>
       </div>

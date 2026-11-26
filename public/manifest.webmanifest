@@ -1,0 +1,19 @@
+{
+  "name": "5D Triad Forge · Sovereign World",
+  "short_name": "TriadForge",
+  "description": "Playable 60fps 3D Worlds, 180-BPM Acid-303 Synth, A* Escape Rooms & Genie 4 Studio by NOBIS23.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07090e",
+  "theme_color": "#07090e",
+  "categories": ["games", "music", "entertainment"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='42' fill='%230b1325'/><circle cx='96' cy='96' r='58' fill='none' stroke='%2338bdf8' stroke-width='14'/><circle cx='96' cy='96' r='24' fill='%2334d399'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

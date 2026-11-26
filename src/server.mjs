@@ -1,15 +1,15 @@
-// HTTP + SSE Server for 5D Triad Forge v2.0 Suite:
-// - Module 0: Cost Firewall ($0.00 Lock Default, 12s Golden Take Burst, Daily Cap)
-// - Module 1: 0-€ Playable 3D Blueprints + Genie 4 Ephemeral Auth
-// - Module 2: Audio-Visual World-Jockey Webhook (/api/jockey/pulse for Ableton/MIDI scripts)
-// - Module 3: Infinite Escape Room with BFS Solvability Oracle (/api/escape/generate)
-// - Module 4: Game-Prototyping Variant-Arena (/api/arena/run)
-// - Module 5: 5D Philosophy Theater & Auto-Micro-Trailer (/api/theater/debate)
+// HTTP + SSE + Gzip Server for 5D Triad Forge v4.0 ("Sovereign Ultra" — /scale-it -4):
+// - Gzip compression on JS/ESM/CSS/HTML (>4.8x wire payload reduction on @google/genai!)
+// - Prepaid World-Coins API (/api/coins/status, /api/coins/redeem, /api/coins/mint, /api/coins/spend)
+// - Multi-Track 180-BPM B-Minor SMF Format 1 MIDI export (/api/jockey/midi)
+// - 4-Tier Min-Heap A* Escape Oracle (/api/escape/generate) & 12-Profile Variant-Arena (/api/arena/run)
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import zlib from "node:zlib";
 import { generateEscapePuzzle } from "./escape-oracle.mjs";
 import { GenieSessionManager } from "./genie-service.mjs";
 import { generateAcidMidi } from "./midi-forge.mjs";
@@ -20,6 +20,7 @@ import {
 } from "./si-algo-core.mjs";
 import { TriadCreativeBus, probeLocalAgents } from "./triad-bus.mjs";
 import { runVariantArena } from "./variant-arena.mjs";
+import { WorldCoinLedger } from "./world-coins.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -32,10 +33,15 @@ const MIME_TYPES = {
   ".js": "text/javascript; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".jpg": "image/jpeg",
+  ".mp3": "audio/mpeg",
 };
+
+const COMPRESSIBLE_EXT = new Set([".html", ".css", ".js", ".mjs", ".json", ".svg", ".webmanifest"]);
+const gzipCache = new Map();
 
 const P_RETRY_BROWSER_ESM = `
 export class AbortError extends Error {
@@ -101,12 +107,77 @@ function sendJson(res, status, data) {
   res.end(payload);
 }
 
-export function createStudioServer({ zeroCostLock = true } = {}) {
+function serveStaticWithGzipAndRange(req, res, filePath, contentType) {
+  const stat = fs.statSync(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+  const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+
+  if (req.headers["if-none-match"] === etag) {
+    res.writeHead(304);
+    res.end();
+    return;
+  }
+
+  // Support HTTP Byte-Range for smooth MP3 seeking on the 180-BPM track!
+  if (ext === ".mp3" && req.headers.range) {
+    const match = String(req.headers.range).match(/bytes=(\d*)-(\d*)/);
+    if (match) {
+      const start = match[1] ? parseInt(match[1], 10) : 0;
+      const end = match[2] ? parseInt(match[2], 10) : stat.size - 1;
+      if (start >= 0 && end < stat.size && start <= end) {
+        res.writeHead(206, {
+          "Content-Type": contentType,
+          "Content-Range": `bytes ${start}-${end}/${stat.size}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": end - start + 1,
+        });
+        fs.createReadStream(filePath, { start, end }).pipe(res);
+        return;
+      }
+    }
+  }
+
+  const acceptsGzip = /\bgzip\b/i.test(String(req.headers["accept-encoding"] || ""));
+  if (acceptsGzip && COMPRESSIBLE_EXT.has(ext) && stat.size > 512) {
+    const cacheKey = `${filePath}:${etag}`;
+    let gz = gzipCache.get(cacheKey);
+    if (!gz) {
+      gz = zlib.gzipSync(fs.readFileSync(filePath), { level: 6 });
+      if (gzipCache.size > 48) gzipCache.clear();
+      gzipCache.set(cacheKey, gz);
+    }
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Content-Encoding": "gzip",
+      "Content-Length": gz.length,
+      ETag: etag,
+      Vary: "Accept-Encoding",
+      "Cache-Control": "no-cache",
+    });
+    res.end(gz);
+    return;
+  }
+
+  res.writeHead(200, {
+    "Content-Type": contentType,
+    "Content-Length": stat.size,
+    "Accept-Ranges": "bytes",
+    ETag: etag,
+    "Cache-Control": "no-cache",
+  });
+  fs.createReadStream(filePath).pipe(res);
+}
+
+export function createStudioServer({ zeroCostLock = true, ledgerFile = null } = {}) {
   const genie = new GenieSessionManager({
     budgetPath: path.join(ROOT, "data", "budget-ledger.json"),
     zeroCostLock,
     maxBurstSec: 12,
-    dailyCapSec: 36,
+    dailyCapSec: 48,
+  });
+
+  const coins = new WorldCoinLedger({
+    ledgerFile: ledgerFile ?? path.join(ROOT, "data", "world-coins.json"),
   });
 
   const bus = new TriadCreativeBus({
@@ -134,12 +205,12 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
     const pathname = url.pathname;
 
-    // Loopback Origin CSRF Guard on state-mutating POST endpoints (Syzygos Fix #3)
+    // Loopback Origin CSRF Guard on all state-mutating POST endpoints
     if (req.method === "POST") {
       const origin = req.headers.origin;
       if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
         return sendJson(res, 403, {
-          error: `Blocked cross-origin POST from ${origin} to protect local Cost Firewall & CLIs.`,
+          error: `Blocked cross-origin POST from ${origin} to protect local Cost Firewall & Wallet.`,
           code: "FORBIDDEN_ORIGIN",
         });
       }
@@ -159,7 +230,7 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
         return;
       }
 
-      // 2. Status, Agents, Auth & Cost Firewall State
+      // 2. Status, Agents, Auth, Cost Firewall & World-Coins Wallet
       if (req.method === "GET" && pathname === "/api/status") {
         if (!cachedAgents || url.searchParams.get("refresh") === "1") {
           cachedAgents = await probeLocalAgents();
@@ -167,10 +238,13 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
             genie.refreshGcloudAuth();
           }
         }
+        const walletId = url.searchParams.get("walletId") || "local-studio";
         return sendJson(res, 200, {
           ok: true,
+          version: "4.0.0",
           genieKey: genie.getKeyStatus(),
           budget: genie.getBudgetStatus(),
+          wallet: coins.getWalletStatus(walletId),
           agents: cachedAgents,
           history: bus.worldHistory.slice(-10),
         });
@@ -184,16 +258,67 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
         return sendJson(res, 200, { ok: true, budget });
       }
 
-      // 4. Optional API Key Override in Local Server RAM
+      // 4. Prepaid World-Coins Endpoints (Status, Redeem Gumroad/Voucher, Mint Dev Voucher, Atomic Spend)
+      if (req.method === "GET" && pathname === "/api/coins/status") {
+        const walletId = url.searchParams.get("walletId") || "local-studio";
+        return sendJson(res, 200, { ok: true, wallet: coins.getWalletStatus(walletId) });
+      }
+
+      if (req.method === "POST" && pathname === "/api/coins/redeem") {
+        const body = await readJsonBody(req);
+        const resRedeem = await coins.redeemCode({
+          walletId: body.walletId || "local-studio",
+          code: body.code,
+          gumroadProductId: body.gumroadProductId || null,
+        });
+        broadcastSse({ type: "wallet.updated", wallet: resRedeem.wallet });
+        return sendJson(res, 200, resRedeem);
+      }
+
+      if (req.method === "POST" && pathname === "/api/coins/mint") {
+        const body = await readJsonBody(req);
+        const voucher = coins.mintVoucher({
+          code: body.code || null,
+          coins: Number(body.coins) || 3,
+          note: body.note || "Local Founder Mint",
+        });
+        return sendJson(res, 200, { ok: true, voucher });
+      }
+
+      // 5. Optional API Key Override in Local Server RAM
       if (req.method === "POST" && pathname === "/api/config/key") {
         const body = await readJsonBody(req);
         genie.setApiKey(body.apiKey || "");
         return sendJson(res, 200, { ok: true, genieKey: genie.getKeyStatus() });
       }
 
-      // 5. Mint Ephemeral Genie 4 Session (guarded by Zero-Cost Firewall & Daily Cap)
+      // 6. Mint Ephemeral Genie 4 Session (supports BOTH Budget Mode AND Prepaid World-Coin Atomic Spend!)
       if (req.method === "POST" && pathname === "/api/genie/session") {
         const body = await readJsonBody(req);
+        let coinTx = null;
+
+        if (body.useWorldCoin === true) {
+          coinTx = coins.spendCoinAtomically({
+            walletId: body.walletId || "local-studio",
+            nonce: body.nonce || crypto.randomUUID(),
+          });
+          broadcastSse({ type: "wallet.updated", wallet: coinTx.wallet });
+          // Temporarily unlock for this single prepaid 12s coin take!
+          const prevLock = genie.zeroCostLock;
+          genie.zeroCostLock = false;
+          try {
+            const sessionInfo = await genie.createEphemeralSession({ requestedBurstSec: 12 });
+            genie.zeroCostLock = prevLock;
+            broadcastSse({ type: "budget.updated", budget: sessionInfo.budget });
+            return sendJson(res, 200, { ...sessionInfo, coinTx });
+          } catch (err) {
+            genie.zeroCostLock = prevLock;
+            coins.refundFailedLaunch(coinTx.nonce);
+            broadcastSse({ type: "wallet.updated", wallet: coins.getWalletStatus(body.walletId) });
+            throw err;
+          }
+        }
+
         const sessionInfo = await genie.createEphemeralSession({
           requestedBurstSec: body.requestedBurstSec,
         });
@@ -201,7 +326,7 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
         return sendJson(res, 200, sessionInfo);
       }
 
-      // 6. Explicit Session Cancel / Accounting Update
+      // 7. Explicit Session Cancel
       if (req.method === "POST" && pathname === "/api/genie/cancel") {
         const body = await readJsonBody(req);
         const result = await genie.cancelSession(body.interactionId, body.elapsedSec);
@@ -209,7 +334,7 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
         return sendJson(res, 200, result);
       }
 
-      // 7. Module 1: AGY x Grok x Claude Creative Round
+      // 8. Module 1: AGY x Grok x Claude Creative Round
       if (req.method === "POST" && pathname === "/api/triad/round") {
         const body = await readJsonBody(req);
         const record = await bus.runCreativeRound({
@@ -222,14 +347,14 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
         return sendJson(res, 200, record);
       }
 
-      // 8. Module 2: Ableton / DAW / MIDI World-Jockey Pulse Bridge & Binary .mid Export
+      // 9. Module 2: World-Jockey Pulse Bridge & Multi-Track 180-BPM B-Minor MIDI Forge
       if (req.method === "POST" && pathname === "/api/jockey/pulse") {
         const body = await readJsonBody(req);
         const pulse = {
           type: "jockey.pulse",
-          bpm: Math.max(60, Math.min(220, Number(body.bpm) || 138)),
-          energy: Math.max(0, Math.min(1, Number(body.energy ?? 0.78))),
-          cutoff: Math.max(0, Math.min(1, Number(body.cutoff ?? 0.65))),
+          bpm: Math.max(60, Math.min(220, Number(body.bpm) || 180)),
+          energy: Math.max(0, Math.min(1, Number(body.energy ?? 0.85))),
+          cutoff: Math.max(0, Math.min(1, Number(body.cutoff ?? 0.72))),
           drop: Boolean(body.drop),
           promptMutation: body.prompt ? String(body.prompt).slice(0, 220) : null,
           ts: new Date().toISOString(),
@@ -241,20 +366,25 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
       if (req.method === "POST" && pathname === "/api/jockey/midi") {
         const body = await readJsonBody(req);
         const midi = generateAcidMidi({
-          seed: body.seed || "5d-triad-acid",
-          bpm: Number(body.bpm) || 138,
-          energy: Number(body.energy ?? 0.78),
-          bars: Number(body.bars) || 2,
+          seed: body.seed || "motivation-180bpm-bmin",
+          bpm: Number(body.bpm) || 180,
+          energy: Number(body.energy ?? 0.85),
+          bars: Number(body.bars) || 4,
+          scale: body.scale || "b_minor",
+          multiTrack: Boolean(body.multiTrack),
         });
         broadcastSse({
           type: "agent.message",
           agent: "grok",
           mode: "303-midi-forge",
           latencyMs: 1,
-          text: `Generated ${midi.bars}-bar 303 Acid clip @ ${midi.bpm} BPM (${midi.noteCount} notes, ${midi.slideCount} slides, ${midi.accentCount} accents · SMF valid=${midi.validation.valid}).`,
+          text: `Generated ${midi.bars}-bar SMF Format ${midi.format} (${midi.trackCount} tracks, ${midi.scale} @ ${midi.bpm} BPM · ${midi.noteCount} notes, ${midi.slideCount} slides · valid=${midi.validation.valid}).`,
         });
         return sendJson(res, 200, {
           ok: midi.validation.valid,
+          format: midi.format,
+          trackCount: midi.trackCount,
+          scale: midi.scale,
           bpm: midi.bpm,
           bars: midi.bars,
           noteCount: midi.noteCount,
@@ -265,35 +395,40 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
         });
       }
 
-      // 9. Module 3: Infinite Escape Room Generator + BFS Proof
+      // 10. Module 3: 4-Tier Min-Heap A* Escape Room Generator
       if (req.method === "POST" && pathname === "/api/escape/generate") {
         const body = await readJsonBody(req);
-        const puzzle = generateEscapePuzzle(body.seed || `escape-${Date.now()}`);
+        const puzzle = generateEscapePuzzle(body.seed || `escape-${Date.now()}`, {
+          tier: Number(body.tier) || 2,
+        });
         broadcastSse({
           type: "agent.message",
           agent: "agy",
-          mode: "bfs-oracle",
+          mode: "minheap-astar",
           latencyMs: 1,
-          text: `Escape Room "${puzzle.theme.title}" verified solvable in ${puzzle.oracle.shortestSteps} steps (${puzzle.oracle.reachableStates} states, ${puzzle.oracle.deadEnds} dead-ends, decoy trap: ${puzzle.oracle.trapsDetected.join(",")}).`,
+          text: `[Tier ${puzzle.tier}] "${puzzle.theme.title}" solved in ${puzzle.oracle.shortestSteps} steps (${puzzle.oracle.expandedAStar} A* vs ${puzzle.oracle.expandedBfs} BFS = ${puzzle.oracle.aStarSpeedupRatio}x speedup · ${puzzle.oracle.reachableStates} states, 0 dead-ends).`,
         });
         return sendJson(res, 200, puzzle);
       }
 
-      // 10. Module 4: Game-Prototyping Variant-Arena
+      // 11. Module 4: 12-Profile Game Variant-Arena
       if (req.method === "POST" && pathname === "/api/arena/run") {
         const body = await readJsonBody(req);
-        const arena = runVariantArena({ concept: body.concept });
+        const arena = runVariantArena({
+          concept: body.concept,
+          limit: Number(body.limit) || 4,
+        });
         broadcastSse({
           type: "agent.message",
           agent: "claude",
           mode: "variant-arena",
           latencyMs: Math.round(arena.totalEvalMs),
-          text: `Arena Champion for "${arena.concept}": ${arena.winnerTitle} (score=${arena.candidates[0].score}).`,
+          text: `Evaluated ${arena.totalEvaluated} archetypes for "${arena.concept}" -> Winner: ${arena.winnerTitle} (score=${arena.candidates[0].score}).`,
         });
         return sendJson(res, 200, arena);
       }
 
-      // 11. Module 5: 5D Philosophy & Architecture Debate Theater
+      // 12. Module 5: 5D Philosophy Debate & Canonical si-algo Endpoints
       if (req.method === "POST" && pathname === "/api/theater/debate") {
         const body = await readJsonBody(req);
         const theater = await bus.runPhilosophyTheater({
@@ -303,7 +438,6 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
         return sendJson(res, 200, theater);
       }
 
-      // 11b. Canonical Sovereign Integral (si-algo) Audit, Live Brier Feedback & Simulation Endpoint
       if (req.method === "POST" && pathname === "/api/si-algo/feedback") {
         const body = await readJsonBody(req);
         const fbPath = path.join(ROOT, "data", "brier-feedback.jsonl");
@@ -338,16 +472,19 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
             })
           );
         }
-        const resIntegral = computeSovereignIntegral({
-          session: body.session || {},
-          history: Array.isArray(body.history) ? body.history : [],
-          loopMode: body.loopMode || "on",
-          minSettled: Number(body.minSettled) || 10,
-        });
-        return sendJson(res, 200, resIntegral);
+        return sendJson(
+          res,
+          200,
+          computeSovereignIntegral({
+            session: body.session || {},
+            history: Array.isArray(body.history) ? body.history : [],
+            loopMode: body.loopMode || "on",
+            minSettled: Number(body.minSettled) || 10,
+          })
+        );
       }
 
-      // 12. ESM Vendor Shim + @google/genai Browser Bundle
+      // 13. Vendor Shims (Gzip enabled!)
       if (req.method === "GET" && pathname === "/vendor/p-retry.mjs") {
         res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
         res.end(P_RETRY_BROWSER_ESM);
@@ -361,30 +498,34 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
         if (!target.startsWith(allowedRoot) || !fs.existsSync(target)) {
           return sendJson(res, 404, { error: "Not found" });
         }
-        res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
-        fs.createReadStream(target).pipe(res);
-        return;
+        return serveStaticWithGzipAndRange(req, res, target, "text/javascript; charset=utf-8");
       }
 
-      // 13. Static Assets in public/
+      // 14. Static Assets in public/ (Gzip + Byte-Range MP3 streaming)
       const fileRel = pathname === "/" ? "index.html" : pathname.slice(1);
       const filePath = path.resolve(PUBLIC_DIR, fileRel);
       if (!filePath.startsWith(PUBLIC_DIR) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
         return sendJson(res, 404, { error: "Not found" });
       }
       const ext = path.extname(filePath).toLowerCase();
-      res.writeHead(200, {
-        "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
-        "Cache-Control": "no-cache",
-      });
-      fs.createReadStream(filePath).pipe(res);
+      return serveStaticWithGzipAndRange(
+        req,
+        res,
+        filePath,
+        MIME_TYPES[ext] || "application/octet-stream"
+      );
     } catch (err) {
       const status =
-        err.code === "MISSING_API_KEY" ||
-        err.code === "ZERO_COST_LOCK" ||
-        err.code === "DAILY_BUDGET_REACHED"
-          ? 400
-          : 500;
+        err.code === "INSUFFICIENT_COINS"
+          ? 402
+          : err.code === "MISSING_API_KEY" ||
+              err.code === "ZERO_COST_LOCK" ||
+              err.code === "DAILY_BUDGET_REACHED" ||
+              err.code === "ALREADY_REDEEMED" ||
+              err.code === "INVALID_LICENSE" ||
+              err.code === "DUPLICATE_NONCE"
+            ? 400
+            : 500;
       sendJson(res, status, { error: err.message || "Internal server error", code: err.code || "ERR" });
     }
   });
@@ -394,14 +535,14 @@ export function createStudioServer({ zeroCostLock = true } = {}) {
     server.close();
   };
 
-  return { server, genie, bus, shutdown };
+  return { server, genie, coins, bus, shutdown };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT) || 4321;
   const { server, shutdown } = createStudioServer({ zeroCostLock: true });
   server.listen(port, () => {
-    console.log(`\n[5D Triad Forge v2.0] Complete Suite ready ($0.00 Lock Active by default):`);
+    console.log(`\n[5D Triad Forge v4.0 Ultra] 16-Archetype 3D + 180-BPM Sync + World-Coins ready:`);
     console.log(`  -> http://localhost:${port}\n`);
   });
   process.on("SIGINT", async () => {

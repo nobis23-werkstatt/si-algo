@@ -519,3 +519,93 @@ button:disabled {
   color: #cbd5e1;
   overflow-x: auto;
 }
+
+/* v4.0: Mobile Dual-Thumb Touch Controls & 180-BPM Track Sync Deck */
+.touch-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+.touch-overlay.hidden {
+  display: none;
+}
+.touch-stick-zone {
+  position: absolute;
+  left: 14px;
+  bottom: 44px;
+  width: 118px;
+  height: 118px;
+  pointer-events: auto;
+  touch-action: none;
+  display: grid;
+  place-items: center;
+}
+.touch-stick-base {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: rgba(8, 14, 28, 0.55);
+  border: 2px solid rgba(56, 189, 248, 0.45);
+  display: grid;
+  place-items: center;
+}
+.touch-stick-nub {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(52, 211, 153, 0.78);
+  box-shadow: 0 0 14px rgba(52, 211, 153, 0.6);
+}
+.touch-look-zone {
+  position: absolute;
+  right: 0;
+  top: 44px;
+  width: 52%;
+  bottom: 100px;
+  pointer-events: auto;
+  touch-action: none;
+}
+.touch-actions {
+  position: absolute;
+  right: 14px;
+  bottom: 44px;
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+.touch-btn {
+  padding: 10px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: rgba(12, 19, 36, 0.82);
+  border: 1px solid rgba(192, 132, 252, 0.55);
+}
+.touch-btn.drop {
+  background: rgba(249, 115, 22, 0.35);
+  border-color: var(--grok);
+}
+.coin-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(52, 211, 153, 0.1));
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  font-size: 0.77rem;
+}
+.track-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.16), rgba(56, 189, 248, 0.14));
+  border: 1px solid rgba(244, 63, 94, 0.42);
+}

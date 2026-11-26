@@ -1,0 +1,25 @@
+{
+  "packageId": "at.paulsolutions.triadforge",
+  "host": "nobis23-werkstatt.github.io",
+  "name": "5D Triad Forge",
+  "launcherName": "TriadForge",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "themeColor": "#07090E",
+  "navigationColor": "#07090E",
+  "backgroundColor": "#07090E",
+  "enableNotifications": false,
+  "startUrl": "/si-algo/",
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "paulsolutions-triadforge"
+  },
+  "appVersionName": "4.0.0",
+  "appVersionCode": 4,
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "playBilling": {
+    "enabled": true,
+    "products": ["n23_world_coins_3", "n23_world_coins_10", "n23_world_coins_25"]
+  }
+}

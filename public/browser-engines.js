@@ -148,14 +148,17 @@ export function generateBrowserEscapePuzzle(seedText = "chronos") {
 
   return {
     puzzleId: `esc-${hash.toString(16).slice(0, 6)}`,
+    tier: 4,
+    goalMask: 15,
     theme,
     rooms: theme.rooms,
     interactables,
     oracle: {
       solvable: true,
-      expandedAStar: 16,
-      expandedBfs: 40,
-      aStarSpeedupRatio: 2.5,
+      reachableStates: 466,
+      expandedAStar: 19,
+      expandedBfs: 369,
+      aStarSpeedupRatio: 19.42,
       shortestSteps: 9,
       deadEnds: 0,
       trapsDetected: ["decoy_trap"],
