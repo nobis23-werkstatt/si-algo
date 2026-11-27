@@ -36,6 +36,7 @@ export const ARCHETYPE_SPECS = {
   desert_monolith: { halfW: 6.5, archH: 6.6, roofPeak: 0.0, rings: false, ribs: "monolith" },
   sub_abyss: { halfW: 5.3, archH: 5.0, roofPeak: 1.6, rings: true, ribs: "dome" },
   sovereign_citadel: { halfW: 6.2, archH: 6.8, roofPeak: 2.6, rings: true, ribs: "diamond" },
+  resonance_sanctuary: { halfW: 6.5, archH: 6.4, roofPeak: 2.4, rings: true, ribs: "dome" },
 };
 
 export class ProceduralAudioEngine {
@@ -59,26 +60,43 @@ export class ProceduralAudioEngine {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
     this.ctx = new AudioCtx();
+    // Ear-Safety & Spatial Comfort Chain (19 Hz DC-Blocker -> 18 kHz Warmth LPF -> Soft-Knee Limiter)
+    const dc = this.ctx.createBiquadFilter();
+    dc.type = "highpass";
+    dc.frequency.value = 19;
+    const warmLpf = this.ctx.createBiquadFilter();
+    warmLpf.type = "lowpass";
+    warmLpf.frequency.value = 18_000;
+    const lim = this.ctx.createDynamicsCompressor();
+    lim.threshold.value = -8;
+    lim.ratio.value = 10;
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.22; // -12 dBFS ear safety headroom
-    this.master.connect(this.ctx.destination);
+    this.master.gain.value = 0.2; // -14 dBFS gentle ear-safe headroom
+    this.master.connect(dc).connect(warmLpf).connect(lim).connect(this.ctx.destination);
   }
 
-  playFootstep(surface = "stone") {
+  playFootstep(surface = "stone", panX = 0) {
     if (!this.enabled) return;
     this._init();
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = surface === "metal" ? "triangle" : "sine";
-    osc.frequency.setValueAtTime(surface === "metal" ? 195 : 115, now);
-    osc.frequency.exponentialRampToValueAtTime(42, now + 0.055);
-    gain.gain.setValueAtTime(0.17, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-    osc.connect(gain).connect(this.master);
+    const pan = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+    osc.type = "sine"; // Gentle organic low thud, zero harsh transients
+    osc.frequency.setValueAtTime(surface === "metal" ? 144 : 96, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.065);
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.11, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.07);
+    if (pan) {
+      pan.pan.value = Math.max(-0.6, Math.min(0.6, panX));
+      osc.connect(gain).connect(pan).connect(this.master);
+    } else {
+      osc.connect(gain).connect(this.master);
+    }
     osc.start(now);
-    osc.stop(now + 0.065);
+    osc.stop(now + 0.075);
   }
 
   playChime(kind = "unlock") {
@@ -86,23 +104,32 @@ export class ProceduralAudioEngine {
     this._init();
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    // Tuned to B-Minor (B4=493.88, D5=587.33, F#5=739.99, B5=987.77)!
+    // Pure Just Intonation on neutral 200 Hz root (1:1=200, 5:4=250, 3:2=300, 2:1=400 Hz)!
+    // Zero 12-TET beating roughness; gentle non-punitive descending fifth (300 -> 200 Hz) on locked cues!
     const freqs =
       kind === "trap"
-        ? [185, 130.81]
+        ? [300, 200]
         : kind === "portal"
-          ? [493.88, 587.33, 739.99, 987.77]
-          : [493.88, 659.25, 739.99];
+          ? [200, 250, 300, 400]
+          : [200, 250, 300];
     freqs.forEach((f, idx) => {
       const osc = this.ctx.createOscillator();
       const g = this.ctx.createGain();
-      osc.type = kind === "trap" ? "sawtooth" : "triangle";
-      osc.frequency.setValueAtTime(f, now + idx * 0.055);
-      g.gain.setValueAtTime(0.15, now + idx * 0.055);
-      g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.3);
-      osc.connect(g).connect(this.master);
-      osc.start(now + idx * 0.055);
-      osc.stop(now + idx * 0.055 + 0.32);
+      const pan = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+      osc.type = "sine";
+      const t0 = now + idx * 0.075;
+      osc.frequency.setValueAtTime(f, t0);
+      g.gain.setValueAtTime(0.0005, t0);
+      g.gain.linearRampToValueAtTime(0.13, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.55);
+      if (pan) {
+        pan.pan.value = ((idx % 3) - 1) * 0.45; // 360°-feeling wide stereo bloom
+        osc.connect(g).connect(pan).connect(this.master);
+      } else {
+        osc.connect(g).connect(this.master);
+      }
+      osc.start(t0);
+      osc.stop(t0 + 0.58);
     });
   }
 
@@ -188,6 +215,7 @@ export class PlayableWorld3D {
     this.dropFlash = 0;
     this.spectrumBars = null; // 16-bar live FFT array when Motivation Track plays!
     this.autoFly = false;
+    this.sanctuaryFrame = null; // Live 360° Breath-Coherence & Spatial HRTF Orbs!
 
     // Private God Mode & Neo-Blick (#razz) state (inactive for all public visitors)
     this.god = {
@@ -671,6 +699,51 @@ export class PlayableWorld3D {
     if (this.dropFlash > 0.01) {
       ctx.fillStyle = rgba(porRgb, this.dropFlash * 0.3);
       ctx.fillRect(0, 0, w, h);
+    }
+
+    // 360° Spatial Sound-Sanctuary Breath-Coherence Halo & Orbiting HRTF Sound Orbs
+    if (this.sanctuaryFrame?.active) {
+      const sf = this.sanctuaryFrame;
+      ctx.save();
+      for (const op of sf.orbPositions || []) {
+        const proj = this.project(op.x, op.y, op.z);
+        if (proj) {
+          const r = Math.max(8, Math.min(42, proj.scale * 0.32));
+          const og = ctx.createRadialGradient(proj.sx, proj.sy, r * 0.1, proj.sx, proj.sy, r);
+          og.addColorStop(0, "rgba(255, 255, 255, 0.92)");
+          og.addColorStop(0.45, "rgba(45, 212, 191, 0.62)");
+          og.addColorStop(1, "rgba(45, 212, 191, 0)");
+          ctx.fillStyle = og;
+          ctx.beginPath();
+          ctx.arc(proj.sx, proj.sy, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      const breathR = 44 + sf.progress * 58;
+      const cx = w * 0.5;
+      const cy = horizonY - 12;
+      const halo = ctx.createRadialGradient(cx, cy, breathR * 0.25, cx, cy, breathR * 1.35);
+      halo.addColorStop(0, "rgba(45, 212, 191, 0.26)");
+      halo.addColorStop(0.65, "rgba(56, 189, 248, 0.12)");
+      halo.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(cx, cy, breathR * 1.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(167, 243, 208, 0.78)";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, breathR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ecfdf5";
+      ctx.font = "600 14px Inter, Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`🌿 ${sf.phaseName}`, cx, cy + 5);
+      ctx.textAlign = "start";
+      ctx.restore();
     }
 
     // NEO-BLICK (#razz) Matrix Code-Rain & A* Escape X-Ray Overlay (Private God Mode only)

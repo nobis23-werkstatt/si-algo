@@ -610,6 +610,19 @@ button:disabled {
   border: 1px solid rgba(244, 63, 94, 0.42);
 }
 
+.sanctuary-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 13px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(13, 148, 136, 0.24), rgba(56, 189, 248, 0.18));
+  border: 1px solid rgba(45, 212, 191, 0.52);
+}
+
 .hidden {
   display: none !important;
 }

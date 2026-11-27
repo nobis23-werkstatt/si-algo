@@ -9,6 +9,11 @@ import {
 } from "./browser-engines.js";
 import { setupTouchControls } from "./touch-controls.js";
 import { initSovereignVaultUI } from "./god-mode.js";
+import {
+  SANCTUARY_PRESETS,
+  SpatialSanctuaryEngine,
+  renderSanctuaryWav24Bit,
+} from "./spatial-sanctuary.js";
 import { MotivationTrackSync } from "./track-sync.js";
 import { PlayableWorld3D, ProceduralAudioEngine } from "./world3d.js";
 
@@ -53,6 +58,100 @@ const els = {
 const audio = new ProceduralAudioEngine();
 const world3d = new PlayableWorld3D(els.canvas, audio);
 const heldKeys = new Set();
+
+// --- 360° Spatial Sound-Sanctuary (Frequenz-Labor 2.0 Core) ---
+const sanctuary = new SpatialSanctuaryEngine({
+  onBreathFrame(frame) {
+    world3d.sanctuaryFrame = frame.active ? frame : null;
+    const liveEl = $("sanctuaryPhaseLive");
+    if (liveEl) {
+      liveEl.textContent = frame.active
+        ? `🌿 ${frame.phaseName} · ${(frame.progress * 100).toFixed(0)}% Kohärenz-Welle (${Math.floor(frame.elapsedSec)}s)`
+        : "Gestoppt — bereit für deine nächste Ruhe- oder Fokus-Routine.";
+    }
+  },
+  onAutoStop() {
+    $("btnSanctuaryToggle").textContent = "▶ 360° Klang-Oase starten";
+    $("btnQuickSanctuary").textContent = "🌿 360° Klang-Oase";
+    appendFeed({ agent: "claude", mode: "auto-fade", text: "🌿 Klang-Oase sanft in Stille ausgeblendet (Gehörschutz)." });
+  },
+});
+
+(function setupSanctuaryUI() {
+  const sel = $("sanctuaryPresetSelect");
+  if (!sel) return;
+  SANCTUARY_PRESETS.forEach((p) => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = `[Evidenz ${p.evidence}] ${p.name}${p.headphonesRequired ? " 🎧" : ""}`;
+    sel.appendChild(opt);
+  });
+
+  const syncPresetInfo = () => {
+    const p = SANCTUARY_PRESETS.find((x) => x.id === sel.value) || SANCTUARY_PRESETS[0];
+    $("sanctuarySummary").textContent = p.summary;
+    $("lblSancBreath").textContent = p.breathPattern.label;
+    const badge = $("sanctuaryEvidenceBadge");
+    badge.textContent = `Evidenz ${p.evidence}${p.headphonesRequired ? " · 🎧 KH" : ""}`;
+    badge.style.borderColor = p.evidence === "A" ? "#34d399" : p.evidence === "B" ? "#38bdf8" : "#fbbf24";
+    $("sanctuaryCaveatBox").textContent = `${p.caveat} · Quellen: ${p.sources.join("; ")} · Kein Medizinprodukt.`;
+    world3d.applyBlueprint(p.blueprint, `🌿 ${p.name}`);
+  };
+  sel.addEventListener("change", () => {
+    syncPresetInfo();
+    if (sanctuary.running) sanctuary.start(sel.value);
+  });
+  syncPresetInfo();
+
+  const toggleSanctuary = () => {
+    if (sanctuary.running) {
+      sanctuary.stop(false);
+      $("btnSanctuaryToggle").textContent = "▶ 360° Klang-Oase starten";
+      $("btnQuickSanctuary").textContent = "🌿 360° Klang-Oase";
+      els.hudState.textContent = "MODE: 0€ PLAYABLE 3D TWIN";
+    } else {
+      sanctuary.sleepTimerSec = Number($("sanctuaryTimerSelect").value) || 0;
+      const p = sanctuary.start(sel.value);
+      world3d.applyBlueprint(p.blueprint, `🌿 360° AKTIV: ${p.name}`);
+      $("btnSanctuaryToggle").textContent = "⏹ Klang-Oase sanft ausblenden";
+      $("btnQuickSanctuary").textContent = "⏹ Oase aktiv";
+      els.hudState.textContent = `🌿 360° HRTF KLANG-OASE (${p.id} · EVIDENZ ${p.evidence})`;
+      appendFeed({ agent: "agy", mode: "360-hrtf-sanctuary", latencyMs: 1, text: `${p.name} gestartet — bewege dich mit WASD/Pfeiltasten im 360°-Klangfeld!` });
+    }
+  };
+
+  $("btnSanctuaryToggle")?.addEventListener("click", toggleSanctuary);
+  $("btnQuickSanctuary")?.addEventListener("click", () => {
+    document.querySelector('[data-pane="pane-sanctuary"]')?.click();
+    toggleSanctuary();
+  });
+  $("sanctuaryTimerSelect")?.addEventListener("change", (e) => {
+    sanctuary.sleepTimerSec = Number(e.target.value) || 0;
+  });
+  $("rngSancVol")?.addEventListener("input", (e) => {
+    $("lblSancVol").textContent = `${e.target.value}%`;
+    sanctuary.setVolume(Number(e.target.value) / 100);
+  });
+  $("rngSancOrbit")?.addEventListener("input", (e) => {
+    const hz = Number(e.target.value) / 100;
+    $("lblSancOrbit").textContent = `${hz.toFixed(2)} Hz`;
+    sanctuary.setOrbitSpeed(hz);
+  });
+  $("btnExportSanctuaryWav")?.addEventListener("click", () => {
+    const wav = renderSanctuaryWav24Bit({ presetId: sel.value, durationSec: 30, sampleRate: 48_000 });
+    offerDownload(
+      new Blob([wav.bytes], { type: "audio/wav" }),
+      `${wav.preset.id.toLowerCase()}-24bit-48khz.wav`,
+      `${wav.preset.id} (30s · 24-bit/48kHz .wav)`
+    );
+    appendFeed({
+      agent: "claude",
+      mode: "24bit-wav-export",
+      latencyMs: 12,
+      text: `Verlustfreie 24-bit / 48 kHz Stereo WAV mit TPDF-Dither gerendert (${(wav.bytes.byteLength / 1024 / 1024).toFixed(1)} MB).`,
+    });
+  });
+})();
 
 let activeSession = null, activeInteractionId = null, sessionStartMs = 0, activeBurstCapSec = 12;
 let lastActivityMs = Date.now(), billingTimer = null, lastTriadRound = null, lastArenaResult = null;
@@ -103,6 +202,7 @@ function frameLoop(now) {
   prevTime = now;
   if (els.video.classList.contains("hidden")) {
     world3d.update(dt, heldKeys);
+    if (sanctuary.running) sanctuary.updateListenerFromCamera(world3d.cam);
     world3d.render(now / 1000);
   }
   requestAnimationFrame(frameLoop);

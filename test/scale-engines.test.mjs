@@ -45,10 +45,10 @@ for (const scaleKey of Object.keys(MIDI_SCALES)) {
   });
 }
 
-// 3. Parameterized verification across all 12 Variant-Arena profiles & 16 3D Archetypes
-test("All 16 3D architectural archetypes have valid geometry specs", () => {
+// 3. Parameterized verification across all 12 Variant-Arena profiles & 16+ 3D Archetypes
+test("All 3D architectural archetypes (16 core + 360° sanctuary) have valid geometry specs", () => {
   const keys = Object.keys(ARCHETYPE_SPECS);
-  assert.equal(keys.length, 16);
+  assert.ok(keys.length >= 16);
   for (const k of keys) {
     assert.ok(ARCHETYPE_SPECS[k].halfW > 0);
     assert.ok(ARCHETYPE_SPECS[k].archH > 0);

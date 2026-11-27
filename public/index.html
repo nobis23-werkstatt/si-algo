@@ -56,6 +56,7 @@
     </div>
 
     <div class="firewall-group">
+      <button class="btn-primary" id="btnQuickSanctuary" title="360° HRTF Rundum-Klang-Oase &amp; 0,1-Hz-Atemführung direkt ein/aus">🌿 360° Klang-Oase</button>
       <button id="btnTouchToggle" title="Dual-Stick Touch-Steuerung ein/aus (Mobile/APK Vorschau)">📱 Touch-Stick</button>
       <button id="btnRecordToggle">⏺ Record (.webm)</button>
       <button id="btnSnapshot">📸 Snapshot (.png)</button>
@@ -111,6 +112,7 @@
           <option value="desert_monolith">14 · Sandstone Monolith</option>
           <option value="sub_abyss">15 · Deep Trench Archive</option>
           <option value="sovereign_citadel">16 · Sovereign Citadel</option>
+          <option value="resonance_sanctuary">17 · 360° Klang-Kuppel Oase</option>
         </select>
         <select id="transportSelect">
           <option value="webrtc" selected>WebRTC</option>
@@ -119,14 +121,61 @@
       </div>
 
       <nav class="mode-tabs">
+        <button class="tab-btn active" data-pane="pane-sanctuary">🌿 0 · 360° Klang-Oase</button>
         <button class="tab-btn" data-pane="pane-twin">1 · 3D Twin</button>
-        <button class="tab-btn active" data-pane="pane-jockey">2 · 180-BPM Sync &amp; 303</button>
+        <button class="tab-btn" data-pane="pane-jockey">2 · 180-BPM Sync &amp; 303</button>
         <button class="tab-btn" data-pane="pane-escape">3 · A* Escape (4 Tiers)</button>
         <button class="tab-btn" data-pane="pane-arena">4 · 12× Variant-Arena</button>
         <button class="tab-btn" data-pane="pane-theater">5 · Theater &amp; Trailer</button>
         <button class="tab-btn god-tab hidden" id="tabGodMode" data-pane="pane-god">6 · 👁️ God &amp; Neo-Blick</button>
         <button class="tab-btn god-tab hidden" id="tabAdminVault" data-pane="pane-admin">7 · 🛡️ Admin Vault</button>
       </nav>
+
+      <!-- PANE 0: 360° KLANG-OASE (Frequenz-Labor 2.0 Spatial Sound Sanctuary — Active Default!) -->
+      <div class="mode-pane active" id="pane-sanctuary">
+        <div class="sanctuary-banner">
+          <div>
+            <strong>🌿 360° Rundum-Klang-Oase · Reine Stimmung (Just Intonation) &amp; 0,1-Hz-Atemführung</strong>
+            <div id="sanctuarySummary" style="font-size:0.75rem;color:#ccfbf1;margin-top:2px;">
+              Umhüllt dich im 360°-HRTF-Raumklang mit schwebungsfreien Obertönen (1:1 · 3:2 · 2:1), sanft kreisendem Naturwind und ruhiger Atem-Kohärenz.
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span class="pill" id="sanctuaryEvidenceBadge" style="border-color:#34d399;color:#a7f3d0;">Evidenz A</span>
+            <button type="button" class="btn-primary" id="btnSanctuaryToggle">▶ 360° Klang-Oase starten</button>
+          </div>
+        </div>
+
+        <div class="seed-row" style="margin-bottom:10px;">
+          <select id="sanctuaryPresetSelect" style="flex:1 1 320px;"></select>
+          <select id="sanctuaryTimerSelect" title="Optionales sanftes Auto-Fade-Out in Stille">
+            <option value="0">Dauerlauf (Manuell)</option>
+            <option value="300">5 Min Routine + Sanftes Fade-Out</option>
+            <option value="900">15 Min Routine + Sanftes Fade-Out</option>
+            <option value="1800">30 Min Abend-Ausklang + Auto-Mute</option>
+          </select>
+          <button type="button" id="btnExportSanctuaryWav" title="Verlustfreier 24-bit / 48 kHz Stereo WAV Export mit TPDF-Dither">⬇ 24-bit / 48 kHz .wav</button>
+        </div>
+
+        <div class="slider-grid">
+          <div class="slider-card">
+            <label>Sanfte Lautstärke (Gehörschutz ≤ 60 dB): <strong id="lblSancVol">72%</strong></label>
+            <input type="range" id="rngSancVol" min="5" max="100" value="72" />
+          </div>
+          <div class="slider-card">
+            <label>360°-Klangrotation um den Kopf: <strong id="lblSancOrbit">0.09 Hz</strong></label>
+            <input type="range" id="rngSancOrbit" min="0" max="30" value="9" />
+          </div>
+          <div class="slider-card">
+            <label>Atem-Taktung: <strong id="lblSancBreath">4s Ein · 6s Aus</strong></label>
+            <div id="sanctuaryPhaseLive" style="font-size:0.74rem;color:#6ee7b7;margin-top:4px;">Bereit — atme entspannt mit dem Lichtring im 3D-Raum.</div>
+          </div>
+        </div>
+
+        <div class="code-hint" id="sanctuaryCaveatBox" style="margin-top:4px;">
+          Hinweis: Akustische Begleitung für allgemeines Wohlbefinden, Entspannungsrituale und Fokus-Routinen (kein Medizinprodukt im Sinne der EU-MDR).
+        </div>
+      </div>
 
       <!-- PANE 1: 3D Twin -->
       <div class="mode-pane" id="pane-twin">
@@ -143,8 +192,8 @@
         </div>
       </div>
 
-      <!-- PANE 2: 180-BPM Motivation Track Sync & 4-Track MIDI Forge (Active Default!) -->
-      <div class="mode-pane active" id="pane-jockey">
+      <!-- PANE 2: 180-BPM Motivation Track Sync & 4-Track MIDI Forge -->
+      <div class="mode-pane" id="pane-jockey">
         <div class="track-banner">
           <div>
             <strong>🔥 Pauls 180.00 BPM · B-Minor Motivation Track Sync</strong>

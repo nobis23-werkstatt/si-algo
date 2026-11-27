@@ -9,7 +9,7 @@
     "triad": "node src/cli-triad.mjs",
     "si-algo": "node src/si-algo-core.mjs",
     "bench": "node tools/scale-bench.mjs",
-    "test": "node --test test/triad-world.test.mjs test/world-coins.test.mjs test/scale-engines.test.mjs test/admin-god.test.mjs skills/sovereign-world-forge/scripts/test.mjs"
+    "test": "node --test test/triad-world.test.mjs test/world-coins.test.mjs test/scale-engines.test.mjs test/admin-god.test.mjs test/sanctuary-healing.test.mjs skills/sovereign-world-forge/scripts/test.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
