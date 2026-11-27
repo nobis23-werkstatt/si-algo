@@ -32,6 +32,7 @@
       <span class="pill"><span class="dot" id="dot-claude"></span>Claude</span>
       <span class="pill"><span class="dot" id="dot-key"></span><span id="keyLabel">gcloud: checking</span></span>
       <span class="pill firewall-locked" id="firewallBadge">🔒 0€ Lock Active</span>
+      <span class="pill god-pill hidden" id="godStatusBadge" title="Privater Sovereign Modus aktiv">👑 GOD · ADMIN</span>
     </div>
 
     <form class="key-form" id="keyForm" style="display:flex;gap:6px;">
@@ -123,6 +124,8 @@
         <button class="tab-btn" data-pane="pane-escape">3 · A* Escape (4 Tiers)</button>
         <button class="tab-btn" data-pane="pane-arena">4 · 12× Variant-Arena</button>
         <button class="tab-btn" data-pane="pane-theater">5 · Theater &amp; Trailer</button>
+        <button class="tab-btn god-tab hidden" id="tabGodMode" data-pane="pane-god">6 · 👁️ God &amp; Neo-Blick</button>
+        <button class="tab-btn god-tab hidden" id="tabAdminVault" data-pane="pane-admin">7 · 🛡️ Admin Vault</button>
       </nav>
 
       <!-- PANE 1: 3D Twin -->
@@ -220,6 +223,71 @@
           <button class="btn-primary" id="btnAutoTrailer">🎬 Auto-Trailer + .webm</button>
         </div>
       </div>
+
+      <!-- PANE 6: PRIVATE GOD MODE & NEO-BLICK (#razz) — Hidden for public visitors -->
+      <div class="mode-pane" id="pane-god">
+        <div class="god-banner">
+          <div>
+            <strong>👁️ PRIVATER GOD MODE · NEO-BLICK (#razz)</strong>
+            <div style="font-size:0.74rem;color:#a7f3d0;">Flug-Steuerung: WASD + SPACE (Steigen) + Q/C (Sinken) + SHIFT (Hyper-Boost)</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <label class="toggle-label"><input type="checkbox" id="chkGodNoclip" /> 🕊️ Free-Fly Noclip (0g)</label>
+            <label class="toggle-label"><input type="checkbox" id="chkNeoBlick" /> 👁️ Neo-Blick (#razz X-Ray)</label>
+            <button type="button" class="btn-primary" id="btnGodSolveStep">⚡ A* Auto-Step / Teleport</button>
+            <button type="button" class="btn-danger" id="btnGodLock">🔒 Lock Vault</button>
+          </div>
+        </div>
+
+        <div class="slider-grid">
+          <div class="slider-card">
+            <label>Fly-Speed: <strong id="lblGodSpeed">2.6×</strong></label>
+            <input type="range" id="rngGodSpeed" min="1" max="6" step="0.2" value="2.6" />
+          </div>
+          <div class="slider-card">
+            <label>Kamera-FOV (Brennweite): <strong id="lblGodFov">690</strong></label>
+            <input type="range" id="rngGodFov" min="420" max="980" step="10" value="690" />
+          </div>
+          <div class="slider-card">
+            <label>BPM Overdrive: <strong id="lblGodBpm">180</strong></label>
+            <input type="range" id="rngGodBpm" min="60" max="240" step="1" value="180" />
+          </div>
+        </div>
+      </div>
+
+      <!-- PANE 7: SOVEREIGN ADMIN VAULT — Local Owner Backend Only -->
+      <div class="mode-pane" id="pane-admin">
+        <div class="code-hint" id="adminVaultMeta" style="margin-top:0;margin-bottom:10px;">Lade Vault-Telemetrie…</div>
+
+        <div class="seed-row" style="margin-bottom:10px;">
+          <input type="text" id="adminMintCode" placeholder="Optionaler Code (z.B. N23-VIP-777)" style="max-width:210px;" />
+          <input type="text" id="adminMintCoins" value="10" placeholder="Coins" style="max-width:80px;" />
+          <input type="text" id="adminMintNote" value="Gumroad / VIP Pack" placeholder="Notiz" />
+          <button type="button" class="btn-primary" id="btnAdminMint">🪙 Voucher prägen</button>
+        </div>
+
+        <div class="controls-bar" style="margin-bottom:10px;">
+          <button type="button" class="btn-triad" id="btnAdminGrantSelf">+25 Owner Coins (lokal)</button>
+          <button type="button" id="btnAdminResetBudget">↺ Tagesbudget Reset (0s)</button>
+          <button type="button" class="btn-primary" id="btnAdminExportGodkey">⬇ Portable .n23-godkey.json (für GitHub Pages / Handy)</button>
+        </div>
+
+        <div class="seed-row" style="margin-bottom:10px;">
+          <input type="password" id="adminNewPassInput" placeholder="Eigenes privates Passwort setzen (min. 8 Zeichen, scrypt)…" autocomplete="new-password" />
+          <button type="button" id="btnAdminSetPass">🔐 Passwort speichern</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <strong style="font-size:0.76rem;color:#93a1c2;">Aktive &amp; eingelöste Vouchers</strong>
+            <div id="adminVoucherList" class="admin-list"></div>
+          </div>
+          <div>
+            <strong style="font-size:0.76rem;color:#93a1c2;">Letzte Transaktionen (txLog)</strong>
+            <pre id="adminTxList" class="code-hint" style="max-height:150px;overflow-y:auto;margin-top:5px;"></pre>
+          </div>
+        </div>
+      </div>
     </section>
 
     <aside class="card">
@@ -258,6 +326,33 @@
       <div class="feed" id="triadFeed"></div>
     </aside>
   </main>
+
+  <!-- Private Sovereign Vault Unlock Modal (Hidden unless triggered via #razz / Ctrl+Shift+G / 3x Orb) -->
+  <div class="vault-modal-backdrop hidden" id="vaultModal">
+    <div class="vault-modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong>🔐 Sovereign Admin &amp; Private God Vault</strong>
+        <button type="button" id="btnCloseVaultModal" style="padding:3px 8px;">✕</button>
+      </div>
+      <p id="vaultModalStatus" style="font-size:0.78rem;color:#93a1c2;margin:0 0 12px;"></p>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button type="button" class="btn-primary" id="btnVaultLoopback" style="justify-content:center;padding:10px;">
+          ⚡ 1-Klick Localhost Owner Unlock (Admin + God Mode)
+        </button>
+
+        <div class="seed-row">
+          <input type="password" id="vaultSecretInput" placeholder="Owner-Key (data/admin-vault.json) oder Passwort…" autocomplete="off" />
+          <button type="button" class="btn-triad" id="btnVaultSecretUnlock">Entsperren</button>
+        </div>
+
+        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:9px;font-size:0.76rem;">
+          <label style="display:block;color:#cbd5e1;margin-bottom:5px;">Oder portables <code>.n23-godkey.json</code> laden (ECDSA P-256 Offline-Signatur für GitHub Pages &amp; Handy):</label>
+          <input type="file" id="vaultGodkeyFile" accept=".json,application/json" style="font-size:0.75rem;" />
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="./app.js"></script>
 </body>

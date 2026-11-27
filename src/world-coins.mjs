@@ -140,6 +140,44 @@ export class WorldCoinLedger {
     return this.state.vouchers[finalCode];
   }
 
+  revokeVoucher(code) {
+    const clean = String(code || "").trim().toUpperCase();
+    const v = this.state.vouchers[clean];
+    if (!v) return { ok: false, reason: "NOT_FOUND" };
+    if (v.redeemedBy) return { ok: false, reason: "ALREADY_REDEEMED" };
+    delete this.state.vouchers[clean];
+    this._save();
+    return { ok: true, revokedCode: clean };
+  }
+
+  grantAdminCoins({ walletId = "local-studio", coins = 10, note = "Owner Admin Grant" } = {}) {
+    const cleanCoins = Math.max(1, Math.min(1000, Math.round(Number(coins) || 10)));
+    const wallet = this._ensureWallet(walletId);
+    const now = new Date().toISOString();
+    wallet.balance += cleanCoins;
+    wallet.totalPurchased += cleanCoins;
+    wallet.proUnlocked = true;
+    wallet.updatedAt = now;
+    this.state.txLog.push({
+      ts: now,
+      type: "admin_grant",
+      walletId: wallet.walletId,
+      coins: cleanCoins,
+      note: String(note).slice(0, 80),
+    });
+    this._save();
+    return { ok: true, addedCoins: cleanCoins, wallet: this.getWalletStatus(wallet.walletId) };
+  }
+
+  getAdminLedgerOverview() {
+    return {
+      wallets: Object.values(this.state.wallets),
+      vouchers: Object.values(this.state.vouchers),
+      recentTx: this.state.txLog.slice(-40).reverse(),
+      totalRedeemedGumroadKeys: Object.keys(this.state.redeemedKeys).length,
+    };
+  }
+
   /**
    * Redeems either a minted N23 voucher code OR verifies a live Gumroad license key
    * against https://api.gumroad.com/v2/licenses/verify.

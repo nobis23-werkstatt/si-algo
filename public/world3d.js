@@ -189,6 +189,23 @@ export class PlayableWorld3D {
     this.spectrumBars = null; // 16-bar live FFT array when Motivation Track plays!
     this.autoFly = false;
 
+    // Private God Mode & Neo-Blick (#razz) state (inactive for all public visitors)
+    this.god = {
+      active: false,
+      noclip: false,
+      neoBlick: false,
+      speedMult: 2.6,
+      fov: 690,
+    };
+    this.fpsSmooth = 60;
+    this.matrixDrops = Array.from({ length: 28 }, (_, i) => ({
+      x: -13 + i * 0.96,
+      y: Math.random() * 9,
+      z: -6 - (i * 7) % 68,
+      speed: 2.4 + (i % 5) * 0.65,
+      glyph: "01RAZZNEO909303SI"[i % 17],
+    }));
+
     this.escapePuzzle = null;
     this.escapeMask = 0;
     this.escaped = false;
@@ -302,7 +319,7 @@ export class PlayableWorld3D {
     const rz = dx * sinY + dz * cosY;
     const depth = -rz;
     if (depth < 0.25) return null;
-    const fov = 690;
+    const fov = this.god?.active ? (this.god.fov || 690) : 690;
     return {
       sx: this.canvas.width * 0.5 + (rx / depth) * fov,
       sy: this.canvas.height * 0.52 - (dy / depth) * fov + this.cam.pitch * 260,
@@ -311,8 +328,44 @@ export class PlayableWorld3D {
     };
   }
 
+  stepOptimalEscapeNode() {
+    if (!this.escapePuzzle) {
+      this.bannerText = "Kein aktives Escape-Rätsel geladen – starte zuerst Tab 3 (A* Escape).";
+      return null;
+    }
+    const gm = this.escapePuzzle.goalMask || 15;
+    const nextItem = this.escapePuzzle.interactables.find((it) => {
+      if (it.kind === "switch") {
+        const notSet = (this.escapeMask & it.flagBit) === 0;
+        const reqOk = ((this.escapeMask & (it.requiresMask || 0)) === (it.requiresMask || 0));
+        return notSet && reqOk;
+      }
+      if (it.kind === "portal") {
+        return (this.escapeMask & gm) === gm && !this.escaped;
+      }
+      return false;
+    });
+    if (!nextItem) {
+      this.bannerText = "Alle A*-Runen bereits gelöst!";
+      return null;
+    }
+    this.cam.x = nextItem.x;
+    this.cam.z = nextItem.z + 1.8;
+    this.nearestInteractable = nextItem;
+    return this.tryInteract();
+  }
+
   update(dt, heldKeys) {
-    const moveSpeed = this.autoFly ? 11.5 : 7.8;
+    if (dt > 0.001) {
+      this.fpsSmooth = this.fpsSmooth * 0.9 + (1 / dt) * 0.1;
+    }
+    const isNoclip = Boolean(this.god?.active && this.god?.noclip);
+    const boost = isNoclip && heldKeys.has("shift") ? 2.15 : 1.0;
+    const moveSpeed = isNoclip
+      ? 8.0 * (this.god.speedMult || 2.6) * boost
+      : this.autoFly
+        ? 11.5
+        : 7.8;
     const turnSpeed = 1.75;
 
     if (heldKeys.has("arrow_left")) this.cam.yaw += turnSpeed * dt;
@@ -325,7 +378,13 @@ export class PlayableWorld3D {
     if (heldKeys.has("key_a")) strafe -= 1;
     if (heldKeys.has("key_d")) strafe += 1;
 
-    if (heldKeys.has("space") && this.cam.y <= 1.76) {
+    if (isNoclip) {
+      if (heldKeys.has("space")) this.cam.y = Math.min(28, this.cam.y + moveSpeed * 0.65 * dt);
+      if (heldKeys.has("key_q") || heldKeys.has("key_c")) {
+        this.cam.y = Math.max(0.4, this.cam.y - moveSpeed * 0.65 * dt);
+      }
+      this.cam.vy = 0;
+    } else if (heldKeys.has("space") && this.cam.y <= 1.76) {
       this.cam.vy = 4.8;
     }
 
@@ -337,46 +396,54 @@ export class PlayableWorld3D {
       const cosY = Math.cos(this.cam.yaw);
       this.cam.x += (-sinY * nf + cosY * ns) * moveSpeed * dt;
       this.cam.z += (-cosY * nf - sinY * ns) * moveSpeed * dt;
-      this.cam.x = Math.max(-6.2, Math.min(6.2, this.cam.x));
 
-      const maxLen = this.blueprint.corridorLength || 84;
-      let minZ = -maxLen;
-      if (this.escapePuzzle && !this.escaped) {
-        const goalMask = this.escapePuzzle.goalMask || 15;
-        let unlockedStages = 0;
-        for (let b = 0; b < 8; b++) {
-          if ((goalMask & (1 << b)) === 0) break;
-          if ((this.escapeMask & (1 << b)) !== 0) unlockedStages++;
-          else break;
-        }
-        const totalStages = Math.round(Math.log2(goalMask + 1));
-        if (unlockedStages < totalStages) {
-          minZ = Math.max(minZ, -(18 + unlockedStages * 15));
-        }
-      }
+      if (isNoclip) {
+        this.cam.x = Math.max(-32, Math.min(32, this.cam.x));
+        this.cam.z = Math.max(-140, Math.min(24, this.cam.z));
+      } else {
+        this.cam.x = Math.max(-6.2, Math.min(6.2, this.cam.x));
 
-      if (this.cam.z < minZ) {
-        if (!this.escapePuzzle && this.cam.z <= minZ + 0.5) {
-          this.cam.z = 4;
-          if (!this.autoFly) this.audio?.playChime("portal");
-        } else {
-          this.cam.z = minZ;
+        const maxLen = this.blueprint.corridorLength || 84;
+        let minZ = -maxLen;
+        if (this.escapePuzzle && !this.escaped) {
+          const goalMask = this.escapePuzzle.goalMask || 15;
+          let unlockedStages = 0;
+          for (let b = 0; b < 8; b++) {
+            if ((goalMask & (1 << b)) === 0) break;
+            if ((this.escapeMask & (1 << b)) !== 0) unlockedStages++;
+            else break;
+          }
+          const totalStages = Math.round(Math.log2(goalMask + 1));
+          if (unlockedStages < totalStages) {
+            minZ = Math.max(minZ, -(18 + unlockedStages * 15));
+          }
         }
-      }
-      this.cam.z = Math.min(8, this.cam.z);
 
-      this.stepDistance += moveSpeed * dt;
-      if (!this.autoFly && this.stepDistance >= 2.4 && this.cam.y <= 1.8) {
-        this.stepDistance = 0;
-        this.audio?.playFootstep("stone");
+        if (this.cam.z < minZ) {
+          if (!this.escapePuzzle && this.cam.z <= minZ + 0.5) {
+            this.cam.z = 4;
+            if (!this.autoFly) this.audio?.playChime("portal");
+          } else {
+            this.cam.z = minZ;
+          }
+        }
+        this.cam.z = Math.min(8, this.cam.z);
+
+        this.stepDistance += moveSpeed * dt;
+        if (!this.autoFly && this.stepDistance >= 2.4 && this.cam.y <= 1.8) {
+          this.stepDistance = 0;
+          this.audio?.playFootstep("stone");
+        }
       }
     }
 
-    this.cam.y += this.cam.vy * dt;
-    if (this.cam.y > 1.75) this.cam.vy -= 12.5 * dt;
-    else {
-      this.cam.y = 1.75;
-      this.cam.vy = 0;
+    if (!isNoclip) {
+      this.cam.y += this.cam.vy * dt;
+      if (this.cam.y > 1.75) this.cam.vy -= 12.5 * dt;
+      else {
+        this.cam.y = 1.75;
+        this.cam.vy = 0;
+      }
     }
 
     this.beatPulse = Math.max(0, this.beatPulse - dt * 3.1);
@@ -403,9 +470,10 @@ export class PlayableWorld3D {
     const h = this.canvas.height;
 
     const spec = ARCHETYPE_SPECS[this.blueprint.archetype] || ARCHETYPE_SPECS.cathedral;
-    const skyRgb = hexToRgb(this.blueprint.skyColor, [9, 19, 38]);
-    const accRgb = hexToRgb(this.blueprint.accentColor, [56, 189, 248]);
-    const porRgb = hexToRgb(this.blueprint.portalColor, [52, 211, 153]);
+    const isNeo = Boolean(this.god?.active && this.god?.neoBlick);
+    const skyRgb = isNeo ? [2, 9, 5] : hexToRgb(this.blueprint.skyColor, [9, 19, 38]);
+    const accRgb = isNeo ? [0, 255, 136] : hexToRgb(this.blueprint.accentColor, [56, 189, 248]);
+    const porRgb = isNeo ? [0, 229, 255] : hexToRgb(this.blueprint.portalColor, [52, 211, 153]);
 
     const horizonY = h * 0.52 + this.cam.pitch * 260;
     const grad = ctx.createLinearGradient(0, 0, 0, h);
@@ -603,6 +671,70 @@ export class PlayableWorld3D {
     if (this.dropFlash > 0.01) {
       ctx.fillStyle = rgba(porRgb, this.dropFlash * 0.3);
       ctx.fillRect(0, 0, w, h);
+    }
+
+    // NEO-BLICK (#razz) Matrix Code-Rain & A* Escape X-Ray Overlay (Private God Mode only)
+    if (isNeo) {
+      ctx.save();
+      ctx.font = "700 12px ui-monospace, SFMono-Regular, Consolas, monospace";
+      for (const drop of this.matrixDrops) {
+        drop.y -= 0.045 * drop.speed;
+        if (drop.y < 0.2) drop.y = 9.2;
+        let dz = drop.z;
+        while (dz > this.cam.z - 1) dz -= 66;
+        while (dz < this.cam.z - 67) dz += 66;
+        const pt = this.project(drop.x, drop.y, dz);
+        if (pt) {
+          ctx.fillStyle = "rgba(0, 255, 136, 0.58)";
+          ctx.fillText(drop.glyph, pt.sx, pt.sy);
+        }
+      }
+
+      if (this.escapePuzzle) {
+        const gm = this.escapePuzzle.goalMask || 15;
+        for (const it of this.escapePuzzle.interactables) {
+          const orb = this.project(it.x, it.kind === "portal" ? 2.4 : 1.6, it.z);
+          if (!orb) continue;
+          const distM = Math.hypot(it.x - this.cam.x, it.z - this.cam.z).toFixed(1);
+          if (it.kind === "decoy") {
+            ctx.strokeStyle = "rgba(244, 63, 94, 0.9)";
+            ctx.strokeRect(orb.sx - 18, orb.sy - 18, 36, 36);
+            ctx.fillStyle = "#fda4af";
+            ctx.fillText(`[TRAP · ${distM}m]`, orb.sx - 44, orb.sy + 30);
+          } else {
+            const isNext =
+              (it.kind === "switch" &&
+                (this.escapeMask & it.flagBit) === 0 &&
+                (this.escapeMask & (it.requiresMask || 0)) === (it.requiresMask || 0)) ||
+              (it.kind === "portal" && (this.escapeMask & gm) === gm && !this.escaped);
+            if (isNext) {
+              ctx.strokeStyle = "rgba(0, 255, 136, 0.92)";
+              ctx.lineWidth = 2.2;
+              ctx.beginPath();
+              ctx.moveTo(w * 0.5, h - 92);
+              ctx.lineTo(orb.sx, orb.sy);
+              ctx.stroke();
+              ctx.strokeRect(orb.sx - 22, orb.sy - 22, 44, 44);
+              ctx.fillStyle = "#6ee7b7";
+              ctx.fillText(`⚡ NEXT A* NODE (${distM}m)`, orb.sx - 68, orb.sy - 28);
+            }
+          }
+        }
+      }
+
+      ctx.fillStyle = "rgba(2, 16, 10, 0.86)";
+      ctx.fillRect(w * 0.5 - 275, 46, 550, 26);
+      ctx.strokeStyle = "rgba(0, 255, 136, 0.65)";
+      ctx.strokeRect(w * 0.5 - 275, 46, 550, 26);
+      ctx.fillStyle = "#6ee7b7";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        `👁 NEO-BLICK #RAZZ · POS(${this.cam.x.toFixed(1)}, ${this.cam.y.toFixed(1)}, ${this.cam.z.toFixed(1)}) · FOV:${this.god.fov} · ${Math.round(this.fpsSmooth)} FPS · ${this.god.noclip ? "NOCLIP 0G" : "WALK 1G"}`,
+        w * 0.5,
+        63
+      );
+      ctx.textAlign = "start";
+      ctx.restore();
     }
 
     if (this.nearestInteractable) {

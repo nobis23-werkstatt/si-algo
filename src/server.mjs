@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import zlib from "node:zlib";
 import { generateEscapePuzzle } from "./escape-oracle.mjs";
+import { AdminVault, isStrictLoopbackRequest } from "./admin-vault.mjs";
 import { GenieSessionManager } from "./genie-service.mjs";
 import { generateAcidMidi } from "./midi-forge.mjs";
 import {
@@ -168,7 +169,17 @@ function serveStaticWithGzipAndRange(req, res, filePath, contentType) {
   fs.createReadStream(filePath).pipe(res);
 }
 
-export function createStudioServer({ zeroCostLock = true, ledgerFile = null } = {}) {
+export function createStudioServer({
+  zeroCostLock = true,
+  ledgerFile = null,
+  vaultFile = undefined,
+  allowLoopbackQuickUnlock = true,
+} = {}) {
+  const adminVault = new AdminVault({
+    vaultFile: vaultFile === undefined ? path.join(ROOT, "data", "admin-vault.json") : vaultFile,
+    allowLoopbackQuickUnlock,
+  });
+
   const genie = new GenieSessionManager({
     budgetPath: path.join(ROOT, "data", "budget-ledger.json"),
     zeroCostLock,
@@ -276,6 +287,7 @@ export function createStudioServer({ zeroCostLock = true, ledgerFile = null } = 
       }
 
       if (req.method === "POST" && pathname === "/api/coins/mint") {
+        adminVault.requireRequestAuth(req);
         const body = await readJsonBody(req);
         const voucher = coins.mintVoucher({
           code: body.code || null,
@@ -283,6 +295,110 @@ export function createStudioServer({ zeroCostLock = true, ledgerFile = null } = 
           note: body.note || "Local Founder Mint",
         });
         return sendJson(res, 200, { ok: true, voucher });
+      }
+
+      // 4b. Sovereign Admin & Private God-Mode Endpoints
+      if (req.method === "GET" && pathname === "/api/admin/status") {
+        const tok =
+          req.headers["x-admin-token"] ||
+          String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+        const session = adminVault.verifySessionToken(String(tok || "").trim());
+        return sendJson(res, 200, {
+          ok: true,
+          unlocked: Boolean(session),
+          session: session || null,
+          loopbackEligible: allowLoopbackQuickUnlock && isStrictLoopbackRequest(req),
+          publicKeySpkiB64: adminVault.state.ecdsaPublicKeySpkiB64,
+        });
+      }
+
+      if (req.method === "POST" && pathname === "/api/admin/unlock") {
+        const body = await readJsonBody(req);
+        const ip = String(req.socket?.remoteAddress || "unknown");
+        const unlocked = body.loopback
+          ? adminVault.unlockViaLoopback(req)
+          : adminVault.unlockWithSecret(body.secret, ip);
+        return sendJson(res, 200, unlocked);
+      }
+
+      if (req.method === "POST" && pathname === "/api/admin/lock") {
+        const tok =
+          req.headers["x-admin-token"] ||
+          String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+        const body = await readJsonBody(req);
+        if (body.all) adminVault.lockAllSessions();
+        else adminVault.lockSession(String(tok || "").trim());
+        return sendJson(res, 200, { ok: true, locked: true });
+      }
+
+      if (req.method === "GET" && pathname === "/api/admin/overview") {
+        adminVault.requireRequestAuth(req);
+        if (!cachedAgents) cachedAgents = await probeLocalAgents();
+        return sendJson(res, 200, {
+          ok: true,
+          vault: adminVault.getVaultMetadata(),
+          budget: genie.getBudgetStatus(),
+          genieKey: genie.getKeyStatus(),
+          ledger: coins.getAdminLedgerOverview(),
+          agents: cachedAgents,
+        });
+      }
+
+      if (req.method === "POST" && pathname === "/api/admin/passphrase") {
+        adminVault.requireRequestAuth(req);
+        const body = await readJsonBody(req);
+        return sendJson(res, 200, adminVault.setCustomPassphrase(body.passphrase));
+      }
+
+      if (req.method === "POST" && pathname === "/api/admin/mint-voucher") {
+        adminVault.requireRequestAuth(req);
+        const body = await readJsonBody(req);
+        const voucher = coins.mintVoucher({
+          code: body.code || null,
+          coins: Number(body.coins) || 5,
+          note: body.note || "Admin Minted",
+        });
+        return sendJson(res, 200, { ok: true, voucher, ledger: coins.getAdminLedgerOverview() });
+      }
+
+      if (req.method === "POST" && pathname === "/api/admin/revoke-voucher") {
+        adminVault.requireRequestAuth(req);
+        const body = await readJsonBody(req);
+        const rev = coins.revokeVoucher(body.code);
+        return sendJson(res, rev.ok ? 200 : 400, { ...rev, ledger: coins.getAdminLedgerOverview() });
+      }
+
+      if (req.method === "POST" && pathname === "/api/admin/grant-coins") {
+        adminVault.requireRequestAuth(req);
+        const body = await readJsonBody(req);
+        const granted = coins.grantAdminCoins({
+          walletId: body.walletId || "local-studio",
+          coins: Number(body.coins) || 25,
+          note: body.note || "God Mode Owner Top-Up",
+        });
+        broadcastSse({ type: "wallet.updated", wallet: granted.wallet });
+        return sendJson(res, 200, { ...granted, ledger: coins.getAdminLedgerOverview() });
+      }
+
+      if (req.method === "POST" && pathname === "/api/admin/reset-budget") {
+        adminVault.requireRequestAuth(req);
+        if (genie.budget) {
+          genie.budget.usedSecToday = 0;
+          if (typeof genie._saveBudget === "function") genie._saveBudget();
+        }
+        const budget = genie.getBudgetStatus();
+        broadcastSse({ type: "budget.updated", budget });
+        return sendJson(res, 200, { ok: true, budget });
+      }
+
+      if (req.method === "POST" && pathname === "/api/admin/export-godkey") {
+        adminVault.requireRequestAuth(req);
+        const body = await readJsonBody(req);
+        const keyEnvelope = adminVault.exportPortableGodKey({
+          label: body.label || "Paul Sovereign GodKey",
+          validDays: Number(body.validDays) || 365,
+        });
+        return sendJson(res, 200, { ok: true, keyEnvelope });
       }
 
       // 5. Optional API Key Override in Local Server RAM
@@ -516,16 +632,23 @@ export function createStudioServer({ zeroCostLock = true, ledgerFile = null } = 
       );
     } catch (err) {
       const status =
-        err.code === "INSUFFICIENT_COINS"
-          ? 402
-          : err.code === "MISSING_API_KEY" ||
-              err.code === "ZERO_COST_LOCK" ||
-              err.code === "DAILY_BUDGET_REACHED" ||
-              err.code === "ALREADY_REDEEMED" ||
-              err.code === "INVALID_LICENSE" ||
-              err.code === "DUPLICATE_NONCE"
-            ? 400
-            : 500;
+        err.code === "ADMIN_AUTH_REQUIRED" || err.code === "INVALID_ADMIN_SECRET"
+          ? 401
+          : err.code === "LOOPBACK_FORBIDDEN"
+            ? 403
+            : err.code === "ADMIN_RATE_LIMITED"
+              ? 429
+              : err.code === "INSUFFICIENT_COINS"
+                ? 402
+                : err.code === "MISSING_API_KEY" ||
+                    err.code === "ZERO_COST_LOCK" ||
+                    err.code === "DAILY_BUDGET_REACHED" ||
+                    err.code === "ALREADY_REDEEMED" ||
+                    err.code === "INVALID_LICENSE" ||
+                    err.code === "DUPLICATE_NONCE" ||
+                    err.code === "WEAK_PASSPHRASE"
+                  ? 400
+                  : 500;
       sendJson(res, status, { error: err.message || "Internal server error", code: err.code || "ERR" });
     }
   });
@@ -535,7 +658,7 @@ export function createStudioServer({ zeroCostLock = true, ledgerFile = null } = 
     server.close();
   };
 
-  return { server, genie, coins, bus, shutdown };
+  return { server, adminVault, genie, coins, bus, shutdown };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

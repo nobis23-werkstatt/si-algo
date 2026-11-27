@@ -3,3 +3,5 @@ node_modules/
 .env.*
 data/
 *.log
+*.n23-godkey.json
+.admin-vault.json

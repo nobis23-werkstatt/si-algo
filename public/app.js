@@ -8,13 +8,14 @@ import {
   runBrowserTriadRound,
 } from "./browser-engines.js";
 import { setupTouchControls } from "./touch-controls.js";
+import { initSovereignVaultUI } from "./god-mode.js";
 import { MotivationTrackSync } from "./track-sync.js";
 import { PlayableWorld3D, ProceduralAudioEngine } from "./world3d.js";
 
 const KEY_MAP = {
   KeyW: "key_w", KeyA: "key_a", KeyS: "key_s", KeyD: "key_d",
   ArrowUp: "arrow_up", ArrowDown: "arrow_down", ArrowLeft: "arrow_left", ArrowRight: "arrow_right",
-  KeyE: "key_e", Space: "space",
+  KeyE: "key_e", Space: "space", KeyQ: "key_q", KeyC: "key_c", ShiftLeft: "shift", ShiftRight: "shift",
 };
 const USD_PER_SEC = 0.101;
 const IDLE_CUTOFF_MS = 6000;
@@ -264,6 +265,16 @@ async function refreshStatus() {
   }
 }
 void refreshStatus();
+
+initSovereignVaultUI({
+  world3d,
+  audio,
+  isStaticPagesModeRef: () => isStaticPagesMode,
+  appendFeed,
+  offerDownload,
+  onCoinsUpdated: (bal) => { els.coinBalance.textContent = String(bal); },
+  onBudgetUpdated: (b) => renderBudgetStatus(b),
+});
 
 els.chkFoleyAudio.addEventListener("change", () => { audio.enabled = els.chkFoleyAudio.checked; });
 els.btnResetCam.addEventListener("click", () => world3d.resetCamera());
